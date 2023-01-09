@@ -1,0 +1,29 @@
+esphome:
+  name: heating-dashboard
+
+esp32:
+  board: nodemcu-32s
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: ""
+
+ota:
+  password: ""
+
+wifi:
+  ssid: ""
+  password: ""
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Heating-Dashboard"
+    password: ""
+
+captive_portal:
+    
