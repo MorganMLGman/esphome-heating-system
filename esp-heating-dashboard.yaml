@@ -41,6 +41,12 @@ spi:
   mosi_pin: GPIO23
   miso_pin: GPIO19
 
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: false
+  id: bus_i2c
+
 binary_sensor:
   - platform: status
     name: ${friendly_name} Status
@@ -84,6 +90,42 @@ sensor:
       - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
     unit_of_measurement: "Signal %"
     entity_category: "diagnostic"
+
+  - platform: sht3xd
+    temperature:
+      id: sht3xd_1_temperature
+      internal: true
+      accuracy_decimals: 1
+    humidity:
+      id: sht3xd_1_humidity
+      internal: true
+      accuracy_decimals: 1
+    address: 0x44
+    update_interval: 60s
+
+  - platform: sht3xd
+    temperature:
+      id: sht3xd_2_temperature
+      internal: true
+      accuracy_decimals: 1
+    humidity:
+      id: sht3xd_2_humidity
+      internal: true
+      accuracy_decimals: 1
+    address: 0x45
+    update_interval: 60s
+
+  - platform: template
+    name: ${friendly_name} Local Temperature
+    lambda: |-
+      return (id(sht3xd_1_temperature).state + id(sht3xd_2_temperature).state) / 2.0;
+    update_interval: 60s
+
+  - platform: template
+    name: ${friendly_name} Local Humidity
+    lambda: |-
+      return (id(sht3xd_1_humidity).state + id(sht3xd_2_humidity).state) / 2.0;
+    update_interval: 60s
 
 output:
   - platform: ledc
