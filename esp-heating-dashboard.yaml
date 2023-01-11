@@ -88,7 +88,7 @@ sensor:
     name: ${friendly_name} WiFi Signal Percent
     filters:
       - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
-    unit_of_measurement: "Signal %"
+    unit_of_measurement: "%"
     entity_category: "diagnostic"
 
   - platform: sht3xd
@@ -99,7 +99,7 @@ sensor:
     humidity:
       id: sht3xd_1_humidity
       internal: true
-      accuracy_decimals: 1
+      accuracy_decimals: 2
     address: 0x44
     update_interval: 60s
 
@@ -111,28 +111,45 @@ sensor:
     humidity:
       id: sht3xd_2_humidity
       internal: true
-      accuracy_decimals: 1
+      accuracy_decimals: 2
     address: 0x45
     update_interval: 60s
 
   - platform: template
     name: ${friendly_name} Local Temperature
+    id: local_temperature
+    accuracy_decimals: 2
     lambda: |-
       return (id(sht3xd_1_temperature).state + id(sht3xd_2_temperature).state) / 2.0;
     update_interval: 60s
 
   - platform: template
     name: ${friendly_name} Local Humidity
+    id: local_humidity
+    accuracy_decimals: 2
     lambda: |-
       return (id(sht3xd_1_humidity).state + id(sht3xd_2_humidity).state) / 2.0;
     update_interval: 60s
+  
+  - platform: homeassistant
+    id: target_temperature
+    entity_id: climate.better_aqara_e1
+    attribute: temperature
+
+graph:
+  - id: temperature_graph
+    sensor: local_temperature
+    duration: 10min
+    width: 320
+    height: 120
+    y_grid: 1.0
+    x_grid: 2min
 
 output:
   - platform: ledc
     pin: GPIO4
     id: gpio_4_backlight_pwm
 
-# Define a monochromatic, dimmable light for the backlight
 light:
   - platform: monochromatic
     output: gpio_4_backlight_pwm
@@ -148,7 +165,21 @@ font:
 
   - file: "gfonts://Inconsolata"
     id: inconsolata
-    size: 20
+    size: 30
+
+image:
+  - file: "icons/temperature.png"
+    id: temperature_ico
+    resize: 30x30
+    type: RGB565
+  - file: "icons/humidity.png"
+    id: humidity_ico
+    resize: 30x30
+    type: RGB565
+  - file: "icons/bar-chart.png"
+    id: chart_ico
+    resize: 30x30
+    type: RGB565
   
 
 color:
@@ -156,6 +187,18 @@ color:
     red: 100%
     green: 20%
     blue: 25%
+    white: 0%
+  
+  - id: my_red2
+    red: 91%
+    green: 11%
+    blue: 38%
+    white: 0%
+  
+  - id: my_blue
+    red: 15%
+    green: 60%
+    blue: 83%
     white: 0%
 
 display:
@@ -169,7 +212,19 @@ display:
 
     lambda: |-
       it.fill(Color::BLACK);
-      it.strftime(0, 0, id(roboto_mono), id(my_red), "%Y-%m-%d %H:%M", id(homeassistant_time).now());
+      it.strftime(0, 0, id(inconsolata), id(my_red), "%Y-%m-%d %H:%M", id(homeassistant_time).now());
+      it.image(290, 0, id(chart_ico));
+
+      it.image(0, 30, id(temperature_ico));
+      it.printf(35, 30, id(inconsolata), id(my_red2), "%4.2f°C", id(local_temperature).state);
+
+      it.image(160, 30, id(temperature_ico));
+      it.printf(195, 30, id(inconsolata), id(my_blue), "%4.2f°C", id(target_temperature).state);
+
+      it.image(0, 60, id(humidity_ico));
+      it.printf(35, 60, id(inconsolata), "%4.2f%%", id(local_humidity).state);
+
+      it.graph(0, 120, id(temperature_graph));
 
 touchscreen:
   platform: xpt2046
