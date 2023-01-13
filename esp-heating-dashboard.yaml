@@ -53,16 +53,43 @@ binary_sensor:
 
   - platform: touchscreen
     internal: true
-    id: more_options
-    page_id: page1
+    id: next_page
     x_min: 290
     x_max: 320
     y_min: 0
     y_max: 30
-    on_press:
+    on_click:
+      min_length: 100ms
+      max_length: 500ms
       then:
-        lambda: |-
-          ESP_LOGD("more_options", "pressed");
+        - if:
+            condition:
+              or:
+                - display.is_displaying_page: page1
+                - display.is_displaying_page: page2
+            then:
+              - display.page.show_next: my_display
+              - component.update: my_display
+          
+  - platform: touchscreen
+    internal: true
+    id: previous_page
+    x_min: 0
+    x_max: 30
+    y_min: 0
+    y_max: 30
+    on_click:
+      min_length: 100ms
+      max_length: 500ms
+      then:
+        - if:
+            condition:
+              or:
+                - display.is_displaying_page: page2
+                - display.is_displaying_page: page3
+            then:
+              - display.page.show_previous: my_display
+              - component.update: my_display
   
   - platform: touchscreen
     internal: true
@@ -72,13 +99,21 @@ binary_sensor:
     x_max: 220
     y_min: 45
     y_max: 105
-    on_press:
+    on_click:
+      min_length: 100ms
+      max_length: 500ms
       then:
-        - lambda: |-
-            ESP_LOGD("target_temperature_plus", "pressed");
-            id(target_temperature).publish_state(id(target_temperature).state + 0.5);
+        - homeassistant.service:
+            service: better_thermostat.set_temp_target_temperature
+            data:
+              entity_id: climate.better_aqara_e1
+            data_template:
+              temperature: '{{ my_variable }}'
+            variables:
+              my_variable: |-
+                return id(target_temperature).state + 0.5;
         - component.update: my_display
-
+              
   - platform: touchscreen
     internal: true
     id: target_temperature_minus
@@ -87,11 +122,19 @@ binary_sensor:
     x_max: 300
     y_min: 45
     y_max: 405
-    on_press:
+    on_click:
+      min_length: 100ms
+      max_length: 500ms
       then:
-        - lambda: |-
-            ESP_LOGD("target_temperature_minus", "pressed");
-            id(target_temperature).publish_state(id(target_temperature).state - 0.5);
+        - homeassistant.service:
+            service: better_thermostat.set_temp_target_temperature
+            data:
+              entity_id: climate.better_aqara_e1
+            data_template:
+              temperature: '{{ my_variable }}'
+            variables:
+              my_variable: |-
+                return id(target_temperature).state - 0.5;
         - component.update: my_display
     
 button:
@@ -175,13 +218,8 @@ sensor:
   
   - platform: homeassistant
     id: target_temperature
-    name: ${friendly_name} Target Temperature
-    internal: false
     entity_id: climate.better_aqara_e1
     attribute: temperature
-    unit_of_measurement: "°C"
-    device_class: "temperature"
-    state_class: "measurement"
 
 graph:
   - id: temperature_graph_1h
@@ -212,7 +250,7 @@ light:
     output: gpio_4_backlight_pwm
     name: ${friendly_name} Display Backlight
     id: back_light
-    restore_mode: ALWAYS_ON
+    restore_mode: RESTORE_DEFAULT_ON
 
 font:
   # gfonts://family[@weight]
@@ -251,6 +289,14 @@ image:
   - file: "icons/minus.png"
     id: minus_ico
     resize: 60x60
+    type: RGB565
+  - file: "icons/arrow-left.png"
+    id: arrow_left_ico
+    resize: 30x30
+    type: RGB565
+  - file: "icons/arrow-right.png"
+    id: arrow_right_ico
+    resize: 30x30
     type: RGB565
   
 
@@ -305,6 +351,19 @@ display:
 
           it.graph(0, 120, id(temperature_graph_1h));
           it.printf(5, 223, id(inconsolata_15), id(secondary), "10min");
+      
+      - id: page2
+        lambda: |-
+          it.fill(Color::BLACK);
+          it.printf(160, 0, id(inconsolata_30), TextAlign::TOP_CENTER,  "PAGE 2");
+          it.image(0, 0, id(arrow_left_ico));
+          it.image(290, 0, id(arrow_right_ico));
+      
+      - id: page3
+        lambda: |-
+          it.fill(Color::BLACK);
+          it.printf(160, 0, id(inconsolata_30), TextAlign::TOP_CENTER,  "PAGE 3");
+          it.image(0, 0, id(arrow_left_ico));
 
 touchscreen:
   platform: xpt2046
@@ -319,12 +378,31 @@ touchscreen:
   calibration_y_min: 3895
   calibration_y_max: 358
   swap_x_y: false
-  # on_touch:
-  #   - lambda: |-
-  #         ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
-  #             id(my_touchscreen).x,
-  #             id(my_touchscreen).y,
-  #             id(my_touchscreen).x_raw,
-  #             id(my_touchscreen).y_raw
-  #             );
+  on_touch:
+    then:
+      - light.turn_on:
+          id: back_light
+          brightness: 100%
+      - script.execute: dim_go_home
 
+
+script:
+  - id: dim_go_home
+    mode: restart
+    then:
+      - delay: 15s
+      - if:
+          condition:
+            not: 
+              - display.is_displaying_page: page1
+          then:
+            - display.page.show: page1
+      - if:
+          condition:
+            lambda: 'return (id(homeassistant_time).now().hour >= 6 && id(homeassistant_time).now().hour < 23);'
+          then:
+            - light.turn_on:
+                id: back_light
+                brightness: 30%
+          else:
+            - light.turn_off: back_light
