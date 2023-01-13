@@ -104,7 +104,7 @@ binary_sensor:
       max_length: 500ms
       then:
         - homeassistant.service:
-            service: better_thermostat.set_temp_target_temperature
+            service: climate.set_temperature
             data:
               entity_id: climate.better_aqara_e1
             data_template:
@@ -127,7 +127,7 @@ binary_sensor:
       max_length: 500ms
       then:
         - homeassistant.service:
-            service: better_thermostat.set_temp_target_temperature
+            service: climate.set_temperature
             data:
               entity_id: climate.better_aqara_e1
             data_template:
