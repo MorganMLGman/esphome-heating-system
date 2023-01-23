@@ -58,11 +58,11 @@ button:
   - platform: shutdown
     name: ${friendly_name} Shutdown
 
-# i2c:
-#   sda: GPIO17
-#   scl: GPIO5
-#   scan: False 
-#   frequency: 400kHz
+i2c:
+  sda: GPIO33
+  scl: GPIO32
+  scan: False 
+  frequency: 400kHz
 
 switch:
   - platform: gpio
@@ -86,13 +86,15 @@ sensor:
   
   - platform: uptime
     name: ${friendly_name} Uptime
+    update_interval: 10s
+    accuracy_decimals: 0
 
 climate:
   - platform: thermostat
     id: my_climate
     name: ${friendly_name} Thermostat
     sensor: temperature_sensor
-    startup_delay: True
+    startup_delay: False
     min_heating_off_time: 10min
     min_heating_run_time: 10min
     max_heating_run_time: 40min
