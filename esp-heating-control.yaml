@@ -1,0 +1,139 @@
+substitutions:
+  devicename: esp-heating-control
+  friendly_name: ESP32 Heating Control
+
+esphome:
+  name: $devicename
+
+esp32:
+  board: wt32-eth01
+  framework:
+    type: arduino
+    version: recommended
+
+logger:
+  level: DEBUG
+
+api:
+  password: !secret api_password
+  encryption:
+    key: !secret esp_heating_control_key
+
+ota:
+  password: !secret ota_password
+
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk_mode: GPIO0_IN
+  phy_addr: 1
+  power_pin: GPIO16
+  
+web_server:
+  port: 80    
+  ota: false
+  include_internal: True
+  local: True
+
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      name: ${friendly_name} IP Address
+
+  - platform: version
+    name: ${friendly_name} ESPHome Version
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+button:
+  - platform: restart
+    name: ${friendly_name} Restart
+    
+  - platform: safe_mode
+    name: ${friendly_name} Safe Mode
+    
+  - platform: shutdown
+    name: ${friendly_name} Shutdown
+
+# i2c:
+#   sda: GPIO17
+#   scl: GPIO5
+#   scan: False 
+#   frequency: 400kHz
+
+switch:
+  - platform: gpio
+    internal: True
+    pin:
+      number: GPIO15
+      inverted: True
+    id: relay1
+  
+  - platform: gpio
+    internal: True
+    pin:
+      number: GPIO14
+      inverted: True
+    id: relay2
+
+sensor:
+  - platform: homeassistant
+    entity_id: sensor.atc_temperature
+    id: temperature_sensor
+  
+  - platform: uptime
+    name: ${friendly_name} Uptime
+
+climate:
+  - platform: thermostat
+    id: my_climate
+    name: ${friendly_name} Thermostat
+    sensor: temperature_sensor
+    startup_delay: True
+    min_heating_off_time: 10min
+    min_heating_run_time: 10min
+    max_heating_run_time: 40min
+    min_idle_time: 30s
+    heat_deadband:  0.2
+    heat_overrun:   0.2
+    supplemental_heating_delta: 0.6
+    heat_action:
+      - switch.turn_on: relay1
+    idle_action:
+      - switch.turn_off: relay1
+      - switch.turn_off: relay2
+    supplemental_heating_action:
+      - switch.turn_on: relay2
+    default_preset: Work Day
+    preset:
+      - name: Work Day
+        default_target_temperature_low: 20.5
+      - name: Day Off
+        default_target_temperature_low: 21.0
+      - name: Sleep
+        default_target_temperature_low: 19.5
+
+# font:
+#   - file: "gfonts://Inconsolata"
+#     id: inconsolata_12
+#     size: 12
+#   - file: "gfonts://Inconsolata"
+#     id: inconsolata_13
+#     size: 13
+#   - file: "gfonts://Inconsolata"
+#     id: inconsolata_14
+#     size: 14
+
+# display:
+#   - platform: ssd1306_i2c
+#     model: SSD1306_128X64
+#     address: 0x3C
+#     lambda: |-
+#       it.strftime(0, 0, id(inconsolata_12), "%Y-%m-%d %H:%M:%S", id(homeassistant_time).now());
+#       it.printf(0, 13, id(inconsolata_14), "Temp: %4.2f°C", id(temperature_sensor).state);
+#       it.printf(0, 28, id(inconsolata_14), "Set: %4.2f°C", id(my_climate).target_temperature);
+#       it.printf(0, 37, id(inconsolata_13), "Mode: %s", id(my_climate).mode);
+#       it.printf(0, 51, id(inconsolata_13), "Action: %s", id(my_climate).action);
